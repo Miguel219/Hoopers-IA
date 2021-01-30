@@ -9,9 +9,10 @@ Coord = namedtuple('Coord',['x','y'])
 
 class Game:
     def __init__(self, dimension = 10):
+        #Estado del juego
+        self.state = 0
         #Tamaño del tablero
         self.dimension = dimension
-        
         #tablero
         self.board = array([[None] * dimension] * dimension) 
         #Jugador 1
@@ -110,7 +111,8 @@ class Game:
                     #Se cambia la posición de la pieza en el tablero
                     self.board[initialCoord.y - 1][initialCoord.x - 1].setVisitor(None)
                     self.board[finalCoord.y - 1][finalCoord.x - 1].setVisitor(piece)
-
+            #Cambia de turno
+            self.state = (self.state + 1) % 2
             return (initialCoord, *path)
 
 
