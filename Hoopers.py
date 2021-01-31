@@ -1,5 +1,6 @@
 from numpy import * 
 from collections import namedtuple
+from copy import deepcopy
 
 from Square import Square
 from Piece import Piece
@@ -8,22 +9,34 @@ from Piece import Piece
 Coord = namedtuple('Coord',['x','y'])
 
 class Game:
-    def __init__(self, dimension = 10):
+    def __init__(self, dimension = 10, state = 0, depth = 1, board = None, player1 = None, player2 = None):
         #Estado del juego
-        self.state = 0
+        self.state = state
+        #Valor de la profundidad calculado por el alpha-beta-search del juego
+        self.depth = depth
         #Tamaño del tablero
         self.dimension = dimension
         #tablero
-        self.board = array([[None] * dimension] * dimension) 
+        if board is not None:
+            self.board = board 
+        else:
+            self.board = array([[None] * dimension] * dimension) 
         #Jugador 1
-        self.player1 = None
+        self.player1 = player1
+        
         #Jugador 2
-        self.player2 = None
+        self.player2 = player2
+        
+        #Si es nuevo
+        if board is None:
+            #Llenamos el tablero
+            self.fillBoard(dimension)
+            #Creamos los movimientos permitidos en las casillas
+            self.setAllowedMovements()
 
-        #Llenamos el tablero
-        self.fillBoard(dimension)
-        #Creamos los movimientos permitidos en las casillas
-        self.setAllowedMovements()
+    #Avanza en la profundidad calculado por el alpha-beta-search del juego
+    def advanceDepth(self):
+        self.depth += 1
 
     #Crea las casillas y fichas de los jugadores y las coloca en las casillas correspondientes
     def fillBoard(self, dimension):
@@ -100,21 +113,35 @@ class Game:
                 if (currentX < self.dimension - 2  and currentY > 1):
                     square.setHopRightUpDiagonal(self.board[currentY - 2][currentX + 2])
     
-    #Funcion que encuentra un camino de una casilla a otra casilla
-    def result(self, action):
+    #Funcion que encuentra un camino de una casilla a otra casilla y cambia el estado del tablero
+    def result(self, action, calculatePath = False):
+
         initialCoord, finalCoord = action
-        path = pathForSquareToFinalCoord(self.board[initialCoord.y - 1][initialCoord.x - 1], finalCoord)
-        if (path):
-            #Se cambia la posición de la pieza del jugador
-            for piece in self.toMove():
-                if (piece.getPosition() == initialCoord):
-                    piece.setPosition(finalCoord)
-                    #Se cambia la posición de la pieza en el tablero
-                    self.board[initialCoord.y - 1][initialCoord.x - 1].setVisitor(None)
-                    self.board[finalCoord.y - 1][finalCoord.x - 1].setVisitor(piece)
-            #Cambia de turno
-            self.state = (self.state + 1) % 2
-            return (initialCoord, *path)
+        
+        for row in self.board:
+            for square in row:
+                square.setView(False)
+        
+        #Se crea una copia del juego
+        newGame = deepcopy(self)
+
+        #Se cambia la posición de la pieza del jugador
+        for piece in newGame.toMove():
+            if (piece.getPosition() == initialCoord):
+                #Se cambia la posición de la pieza
+                piece.setPosition(finalCoord)
+                #Se cambia la posición de la pieza en el tablero
+                newGame.board[initialCoord.y - 1][initialCoord.x - 1].setVisitor(None)
+                newGame.board[finalCoord.y - 1][finalCoord.x - 1].setVisitor(piece)
+        #Cambia de turno
+        newGame.state = (newGame.state + 1) % 2
+        
+        #Si se quiere ver el path
+        if (calculatePath):
+            path = pathForSquareToFinalCoord(self.board[initialCoord.y - 1][initialCoord.x - 1], finalCoord)
+            return newGame, (initialCoord, *path)
+        else:
+            return newGame, None
 
     #Funcion que devuelve el jugador que tiene el turno
     def toMove(self):
@@ -133,24 +160,49 @@ class Game:
             square = self.board[y - 1][x - 1]
             availableActions = squaresToMove(square.getPosition(), square, availableActions)
         
-        return availableActions
+        #Se devuelven las acciones ordenadas
+        if (self.state == 0):
+            return sorted(availableActions, key=lambda action : ((action[0].x + action[0].y) - (action[1].x + action[1].y)))
+        if (self.state == 1):
+            return sorted(availableActions, key=lambda action : ((action[1].x + action[1].y) - (action[0].x + action[0].y)))
 
     #Funcion que devuelve si el estado del juego es terminal 
+    def isFinished(self):
+        if (self.utility(self.player1,0)):
+            countPlayer1 = self.utility(self.player1,0) + self.utility(self.player2,0)
+            if (countPlayer1 == len(self.toMove()) - 1):
+                return (True, 0, self.eval())
+        if (self.utility(self.player2,1)):
+            countPlayer2 = self.utility(self.player1,1) + self.utility(self.player2,1)
+            if (countPlayer2 == len(self.toMove()) - 1):
+                return (True, 1, self.eval())
+        return (False, ) 
+    
+    #Funcion que devuelve si el estado del juego es terminal 
     def isTerminal(self):
-        countPiecesOnEnemysCamp = utility(self.toMove())
-        if (countPiecesOnEnemysCamp > (len(self.toMove()) / 2)):
+        if self.utility(self.toMove()):
+            countPiecesOnEnemysCamp = self.utility(self.player1, self.state) + self.utility(self.player2, self.state)
+            if (countPiecesOnEnemysCamp == len(self.toMove()) - 1):
+                return True
+        return False
+
+    #Funcion que devuelve si el estado del juego es el horizonte (Horizonte = 4)
+    def isCutoff(self):
+        if (self.depth > 4):
             return True
         else:
             return False
 
     #Funcion que devuelve la utility de un jugador
-    def utility(self, player):
+    def utility(self, player, state = None):
+        if (state is None):
+            state = self.state
         countPiecesOnEnemysCamp = 0
         for piece in player:
             x, y = piece.getPosition().x - 1, piece.getPosition().y - 1
-            if (self.state == 0 and x + y < (self.dimension/2)):
+            if (state == 1 and x + y < (self.dimension/2)):
                 countPiecesOnEnemysCamp += 1
-            if (self.state == 1 and x + y >= ((self.dimension/2) + self.dimension - 1)):
+            if (state == 0 and x + y >= ((self.dimension/2) + self.dimension - 1)):
                 countPiecesOnEnemysCamp += 1
         return countPiecesOnEnemysCamp 
 
@@ -169,8 +221,43 @@ class Game:
 
         return (pointsPlayer1 - pointsPlayer2)
 
+    #Funcion que implementa el alpha-beta-search
+    def alphaBetaSearch(self):
+        value, move = maxValue(self, float('-inf'), float('inf'))
+        return move
     
+#Funcion que implementa el max-value
+def maxValue(game, alpha, beta):
+    if (game.isTerminal() or game.isCutoff()):
+        return game.eval(), None
+    v = float('-inf')
+    for a in game.actions():
+        newGame = game.result(a)[0]
+        newGame.advanceDepth()
+        v2, a2 = minValue(newGame, alpha, beta)
+        if (v2 > v):
+            v, move = v2, a
+            alpha = max((alpha,v))
+        if (v >= beta):
+            return v, move
+    return v, move
 
+#Funcion que implementa el min-value
+def minValue(game, alpha, beta):
+    if (game.isTerminal() or game.isCutoff()):
+        return game.eval(), None
+    v = float('inf')
+    for a in game.actions():
+        newGame = game.result(a)[0]
+        newGame.advanceDepth()
+        v2, a2 = maxValue(newGame, alpha, beta)
+        if (v2 < v):
+            v, move = v2, a
+            beta = min((beta,v))
+        if (v <= alpha):
+            return v, move
+    return v, move
+            
 
 #Funcion que devuelve una tupla de las casillas a las que se puede mover una casilla
 def squaresToMove(initialCoord, square, availableActions, recursive = False):
@@ -257,7 +344,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopLeft() and square.getHopLeft().visitor is None):
                 if (square.getHopLeft().getPosition() == finalCoord):
                     return (square.getHopLeft().getPosition(),)
-                else:
+                elif (square.getHopLeft().isView() == False):
+                    square.getHopLeft().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopLeft(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopLeft().getPosition(), *path)
@@ -271,7 +359,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopRight() and square.getHopRight().visitor is None):
                 if (square.getHopRight().getPosition() == finalCoord):
                     return (square.getHopRight().getPosition(),)
-                else:
+                elif (square.getHopRight().isView() == False):
+                    square.getHopRight().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopRight(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopRight().getPosition(), *path)
@@ -285,7 +374,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopDown() and square.getHopDown().visitor is None):
                 if (square.getHopDown().getPosition() == finalCoord):
                     return (square.getHopDown().getPosition(),)
-                else:
+                elif (square.getHopDown().isView() == False):
+                    square.getHopDown().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopDown(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopDown().getPosition(), *path)
@@ -299,7 +389,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopUp() and square.getHopUp().visitor is None):
                 if (square.getHopUp().getPosition() == finalCoord):
                     return (square.getHopUp().getPosition(),)
-                else:
+                elif (square.getHopUp().isView() == False):
+                    square.getHopUp().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopUp(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopUp().getPosition(), *path)
@@ -313,7 +404,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopLeftDownDiagonal() and square.getHopLeftDownDiagonal().visitor is None):
                 if (square.getHopLeftDownDiagonal().getPosition() == finalCoord):
                     return (square.getHopLeftDownDiagonal().getPosition(),)
-                else:
+                elif (square.getHopLeftDownDiagonal().isView() == False):
+                    square.getHopLeftDownDiagonal().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopLeftDownDiagonal(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopLeftDownDiagonal().getPosition(), *path)
@@ -327,7 +419,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopRightDownDiagonal() and square.getHopRightDownDiagonal().visitor is None):
                 if (square.getHopRightDownDiagonal().getPosition() == finalCoord):
                     return (square.getHopRightDownDiagonal().getPosition(),)
-                else:
+                elif (square.getHopRightDownDiagonal().isView() == False):
+                    square.getHopRightDownDiagonal().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopRightDownDiagonal(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopRightDownDiagonal().getPosition(), *path)
@@ -341,7 +434,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopLeftUpDiagonal() and square.getHopLeftUpDiagonal().visitor is None):
                 if (square.getHopLeftUpDiagonal().getPosition() == finalCoord):
                     return (square.getHopLeftUpDiagonal().getPosition(),)
-                else:
+                elif (square.getHopLeftUpDiagonal().isView() == False):
+                    square.getHopLeftUpDiagonal().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopLeftUpDiagonal(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopLeftUpDiagonal().getPosition(), *path)
@@ -355,7 +449,8 @@ def pathForSquareToFinalCoord(square, finalCoord, recursive = False):
             if (square.getHopRightUpDiagonal() and square.getHopRightUpDiagonal().visitor is None):
                 if (square.getHopRightUpDiagonal().getPosition() == finalCoord):
                     return (square.getHopRightUpDiagonal().getPosition(),)
-                else:
+                elif (square.getHopRightUpDiagonal().isView() == False):
+                    square.getHopRightUpDiagonal().setView(True)
                     path = pathForSquareToFinalCoord(square.getHopRightUpDiagonal(), finalCoord, recursive=True)
                     if (path):
                         return (square.getHopRightUpDiagonal().getPosition(), *path)

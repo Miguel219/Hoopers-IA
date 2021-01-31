@@ -17,4 +17,4 @@ class Piece:
         self.position = position
 
     def __str__(self):
-        return str(self.id)
+        return 'P' + str(self.id[0])

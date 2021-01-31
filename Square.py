@@ -2,10 +2,10 @@ class Square:
     def __init__(self, position, visitor = None):
         #Posición en el  tablero
         self.position = position
-        #Valor calculado
-        self.value = None
         #Ficha en su lugar
         self.visitor = visitor
+        #Ficha vista por la funcion que devuelve una tupla de el camino de una casilla a otra casilla
+        self.view = False
         #Movimientos
         self.left = None
         self.right = None
@@ -29,19 +29,19 @@ class Square:
     def getPosition(self):
         return self.position
 
-    #Get y Set del value de la casilla
-    def getValue(self):
-        return self.value
-
-    def setValue(self, value):
-        self.value = value
-
-    #Get y Set del value de la casilla
+    #Get y Set del visitante de la casilla
     def getVisitor(self):
         return self.visitor
 
     def setVisitor(self, visitor):
         self.visitor = visitor
+
+    #Get y Set de si la casilla fue vista o no
+    def isView(self):
+        return self.view
+
+    def setView(self, view):
+        self.view = view
 
     #Gets y Sets de movimientos
     def getLeft(self):
@@ -143,6 +143,6 @@ class Square:
 
     def __str__(self):
         if (self.visitor):
-            return str(self.position) + ' | Visitante: ' + str(self.visitor)
+            return str(self.visitor)
         else:
-            return str(self.position)
+            return '0'
