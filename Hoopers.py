@@ -101,11 +101,12 @@ class Game:
                     square.setHopRightUpDiagonal(self.board[currentY - 2][currentX + 2])
     
     #Funcion que encuentra un camino de una casilla a otra casilla
-    def moveToPath(self, player, initialCoord, finalCoord):
+    def result(self, action):
+        initialCoord, finalCoord = action
         path = pathForSquareToFinalCoord(self.board[initialCoord.y - 1][initialCoord.x - 1], finalCoord)
         if (path):
             #Se cambia la posición de la pieza del jugador
-            for piece in player:
+            for piece in self.toMove():
                 if (piece.getPosition() == initialCoord):
                     piece.setPosition(finalCoord)
                     #Se cambia la posición de la pieza en el tablero
@@ -114,6 +115,61 @@ class Game:
             #Cambia de turno
             self.state = (self.state + 1) % 2
             return (initialCoord, *path)
+
+    #Funcion que devuelve el jugador que tiene el turno
+    def toMove(self):
+        if (self.state == 0):
+            return self.player1
+        elif (self.state == 1):
+            return self.player2
+
+    #Funcion que devuelve las acciones posibles del jugador que tiene el turno
+    def actions(self):
+        #Tupla con todas las acciones
+        availableActions = tuple()
+            
+        for piece in self.toMove():
+            x, y = piece.getPosition()
+            square = self.board[y - 1][x - 1]
+            availableActions = squaresToMove(square.getPosition(), square, availableActions)
+        
+        return availableActions
+
+    #Funcion que devuelve si el estado del juego es terminal 
+    def isTerminal(self):
+        countPiecesOnEnemysCamp = utility(self.toMove())
+        if (countPiecesOnEnemysCamp > (len(self.toMove()) / 2)):
+            return True
+        else:
+            return False
+
+    #Funcion que devuelve la utility de un jugador
+    def utility(self, player):
+        countPiecesOnEnemysCamp = 0
+        for piece in player:
+            x, y = piece.getPosition().x - 1, piece.getPosition().y - 1
+            if (self.state == 0 and x + y < (self.dimension/2)):
+                countPiecesOnEnemysCamp += 1
+            if (self.state == 1 and x + y >= ((self.dimension/2) + self.dimension - 1)):
+                countPiecesOnEnemysCamp += 1
+        return countPiecesOnEnemysCamp 
+
+    #Funcion que evalua los puntos de un estado del juego
+    def eval(self):
+        pointsPlayer1 = 0
+        pointsPlayer2 = 0
+        
+        for piece in self.player1:
+            x, y = piece.getPosition().x - 1, piece.getPosition().y - 1
+            pointsPlayer1 = pointsPlayer1 + x + y 
+        
+        for piece in self.player2:
+            x, y = ((self.dimension - 1) - (piece.getPosition().x - 1)), ((self.dimension - 1) - (piece.getPosition().y - 1))
+            pointsPlayer2 = pointsPlayer2 + x + y
+
+        return (pointsPlayer1 - pointsPlayer2)
+
+    
 
 
 #Funcion que devuelve una tupla de las casillas a las que se puede mover una casilla
