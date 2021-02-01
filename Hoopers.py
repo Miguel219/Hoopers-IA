@@ -9,11 +9,9 @@ from Piece import Piece
 Coord = namedtuple('Coord',['x','y'])
 
 class Game:
-    def __init__(self, dimension = 10, state = 0, depth = 1, board = None, player1 = None, player2 = None):
+    def __init__(self, dimension = 10, state = 0, board = None, player1 = None, player2 = None):
         #Estado del juego
         self.state = state
-        #Valor de la profundidad calculado por el alpha-beta-search del juego
-        self.depth = depth
         #Tamaño del tablero
         self.dimension = dimension
         #tablero
@@ -33,10 +31,6 @@ class Game:
             self.fillBoard(dimension)
             #Creamos los movimientos permitidos en las casillas
             self.setAllowedMovements()
-
-    #Avanza en la profundidad calculado por el alpha-beta-search del juego
-    def advanceDepth(self):
-        self.depth += 1
 
     #Crea las casillas y fichas de los jugadores y las coloca en las casillas correspondientes
     def fillBoard(self, dimension):
@@ -186,9 +180,9 @@ class Game:
                 return True
         return False
 
-    #Funcion que devuelve si el estado del juego es el horizonte (Horizonte = 4)
-    def isCutoff(self):
-        if (self.depth > 4):
+    #Funcion que devuelve si el estado del juego es el horizonte (Horizonte = 3)
+    def isCutoff(self, depth):
+        if (depth > 3):
             return True
         else:
             return False
@@ -223,18 +217,17 @@ class Game:
 
     #Funcion que implementa el alpha-beta-search
     def alphaBetaSearch(self):
-        value, move = maxValue(self, float('-inf'), float('inf'))
+        value, move = maxValue(self, float('-inf'), float('inf'), 1)
         return move
     
 #Funcion que implementa el max-value
-def maxValue(game, alpha, beta):
-    if (game.isTerminal() or game.isCutoff()):
+def maxValue(game, alpha, beta, depth):
+    if (game.isTerminal() or game.isCutoff(depth)):
         return game.eval(), None
     v = float('-inf')
     for a in game.actions():
         newGame = game.result(a)[0]
-        newGame.advanceDepth()
-        v2, a2 = minValue(newGame, alpha, beta)
+        v2, a2 = minValue(newGame, alpha, beta, depth + 1)
         if (v2 > v):
             v, move = v2, a
             alpha = max((alpha,v))
@@ -243,14 +236,13 @@ def maxValue(game, alpha, beta):
     return v, move
 
 #Funcion que implementa el min-value
-def minValue(game, alpha, beta):
-    if (game.isTerminal() or game.isCutoff()):
+def minValue(game, alpha, beta, depth):
+    if (game.isTerminal() or game.isCutoff(depth)):
         return game.eval(), None
     v = float('inf')
     for a in game.actions():
         newGame = game.result(a)[0]
-        newGame.advanceDepth()
-        v2, a2 = maxValue(newGame, alpha, beta)
+        v2, a2 = maxValue(newGame, alpha, beta, depth + 1)
         if (v2 < v):
             v, move = v2, a
             beta = min((beta,v))
