@@ -180,7 +180,7 @@ class Game:
                 return True
         return False
 
-    #Funcion que devuelve si el estado del juego es el horizonte (Horizonte = 3)
+    #Funcion que devuelve si el estado del juego es el horizonte (Horizonte = 2)
     def isCutoff(self, depth):
         if (depth > 2):
             return True
