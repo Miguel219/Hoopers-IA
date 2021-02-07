@@ -164,11 +164,11 @@ class Game:
     def isFinished(self):
         if (self.utility(self.player1,0)):
             countPlayer1 = self.utility(self.player1,0) + self.utility(self.player2,0)
-            if (countPlayer1 == len(self.toMove()) - 1):
+            if (countPlayer1 == len(self.toMove())):
                 return (True, 0, self.eval())
         if (self.utility(self.player2,1)):
             countPlayer2 = self.utility(self.player1,1) + self.utility(self.player2,1)
-            if (countPlayer2 == len(self.toMove()) - 1):
+            if (countPlayer2 == len(self.toMove())):
                 return (True, 1, self.eval())
         return (False, ) 
     
@@ -176,13 +176,13 @@ class Game:
     def isTerminal(self):
         if self.utility(self.toMove()):
             countPiecesOnEnemysCamp = self.utility(self.player1, self.state) + self.utility(self.player2, self.state)
-            if (countPiecesOnEnemysCamp == len(self.toMove()) - 1):
+            if (countPiecesOnEnemysCamp == len(self.toMove())):
                 return True
         return False
 
     #Funcion que devuelve si el estado del juego es el horizonte (Horizonte = 3)
     def isCutoff(self, depth):
-        if (depth > 3):
+        if (depth > 2):
             return True
         else:
             return False
@@ -218,6 +218,10 @@ class Game:
     #Funcion que implementa el alpha-beta-search
     def alphaBetaSearch(self):
         value, move = maxValue(self, float('-inf'), float('inf'), 1)
+        return move
+
+    def alphaBetaSearch2(self):
+        value, move = minValue(self, float('-inf'), float('inf'), 1)
         return move
     
 #Funcion que implementa el max-value
