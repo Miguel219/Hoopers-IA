@@ -128,7 +128,7 @@ class Game:
                 newGame.board[initialCoord.y - 1][initialCoord.x - 1].setVisitor(None)
                 newGame.board[finalCoord.y - 1][finalCoord.x - 1].setVisitor(piece)
         #Cambia de turno
-        newGame.state = (newGame.state + 1) % 2
+        newGame = self.changeTurn(newGame)
         
         #Si se quiere ver el path
         if (calculatePath):
@@ -143,6 +143,15 @@ class Game:
             return self.player1
         elif (self.state == 1):
             return self.player2
+    
+    #Funcion que devuelve el jugador que tiene el turno
+    def changeTurn(self, game = None):
+        if(game is not None):
+            game.state = (game.state + 1) % 2
+            return game
+        else:
+            self.state = (self.state + 1) % 2
+            return self
 
     #Funcion que devuelve las acciones posibles del jugador que tiene el turno
     def actions(self):
@@ -216,11 +225,11 @@ class Game:
         return (pointsPlayer1 - pointsPlayer2)
 
     #Funcion que implementa el alpha-beta-search
-    def alphaBetaSearch(self):
+    def alphaBetaSearchPlayer1(self):
         value, move = maxValue(self, float('-inf'), float('inf'), 1)
         return move
 
-    def alphaBetaSearch2(self):
+    def alphaBetaSearchPlayer2(self):
         value, move = minValue(self, float('-inf'), float('inf'), 1)
         return move
     

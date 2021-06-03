@@ -14,6 +14,18 @@ while typeToPlay == 0:
         integer = int(string)
         if integer == 1 or integer == 2:
             typeToPlay = integer
+            jp = None
+            if typeToPlay == 1:
+                while jp == None:
+                    string = input('Si quieres jugar con el jp1 ingresa 1, si quieres con el jp2 ingresa 2: ')
+                    try:
+                        integer = int(string)
+                        if integer == 1 or integer == 2:
+                            jp = integer 
+                        else:
+                            print('Ingresa una acción correcta')
+                    except:
+                        print('Ingresa una acción correcta')
         else:
             print('Ingresa una acción correcta')
     except:
@@ -24,19 +36,44 @@ dataFrame = DataFrame(game.board)
 dataFrame.index = np.arange(1,len(dataFrame)+1)
 dataFrame.columns = np.arange(1,len(dataFrame)+1)
 print(dataFrame)
-
+index = 1
 while (game.state < 2):
     print('-' * 40)
+    print(index)
+    index += 1
     print('Jugador ' + str(game.state + 1) + ':')
     if (game.state == 0):
-        action = game.alphaBetaSearch()
-        print('Acción:')
-        print(action)
-        game, path = game.result(action, calculatePath=True)
-        print('Camino:')
-        print(path)
+        if typeToPlay == 1 and  jp == 1:
+            i = None
+            f = None
+            actions = game.actions()
+            while (i,f) not in actions:
+                try:
+                    i = Coord(
+                        int(input('Ingresa la coordenada x de la ficha a mover: ')), 
+                        int(input('Ingresa la coordenada y de la ficha a mover: '))) 
+                    f = Coord(
+                        int(input('Ingresa la coordenada x de la casilla destino: ')), 
+                        int(input('Ingresa la coordenada y de la casilla destino: ')))
+                    if (i,f) not in actions:
+                        print('La acción ingresada no es correcta')
+                except:
+                    print('La acción ingresada no es correcta')    
+            print('-' * 40)
+            print('Acción:')
+            print((i,f))
+            game, path = game.result((i,f), calculatePath=True)
+            print('Camino:')
+            print(path)
+        else:
+            action = game.alphaBetaSearch()
+            print('Acción:')
+            print(action)
+            game, path = game.result(action, calculatePath=True)
+            print('Camino:')
+            print(path)
     elif (game.state == 1):
-        if typeToPlay == 1:
+        if typeToPlay == 1 and jp == 2:
             i = None
             f = None
             actions = game.actions()
