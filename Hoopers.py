@@ -1,6 +1,7 @@
 from numpy import * 
 from collections import namedtuple
 from copy import deepcopy
+from math import sqrt
 
 from Square import Square
 from Piece import Piece
@@ -127,8 +128,6 @@ class Game:
                 #Se cambia la posición de la pieza en el tablero
                 newGame.board[initialCoord.y - 1][initialCoord.x - 1].setVisitor(None)
                 newGame.board[finalCoord.y - 1][finalCoord.x - 1].setVisitor(piece)
-        #Cambia de turno
-        newGame = self.changeTurn(newGame)
         
         #Si se quiere ver el path
         if (calculatePath):
@@ -157,17 +156,28 @@ class Game:
     def actions(self):
         #Tupla con todas las acciones
         availableActions = tuple()
-            
-        for piece in self.toMove():
-            x, y = piece.getPosition()
-            square = self.board[y - 1][x - 1]
-            availableActions = squaresToMove(square.getPosition(), square, availableActions)
+        if(self.isFinishing()):
+            for piece in self.toMove():
+                x, y = piece.getPosition()
+                if((self.state == 0 and (x + y - 2) < ((self.dimension/2) + self.dimension - 1)) or (self.state == 1 and (x + y - 2) >= (self.dimension/2))):
+                    square = self.board[y - 1][x - 1]
+                    availableActions = squaresToMove(square.getPosition(), square, availableActions)
+            return availableActions
+        else:
+            for piece in self.toMove():
+                x, y = piece.getPosition()
+                square = self.board[y - 1][x - 1]
+                availableActions = squaresToMove(square.getPosition(), square, availableActions)
         
         #Se devuelven las acciones ordenadas
         if (self.state == 0):
             return sorted(availableActions, key=lambda action : ((action[0].x + action[0].y) - (action[1].x + action[1].y)))
         if (self.state == 1):
             return sorted(availableActions, key=lambda action : ((action[1].x + action[1].y) - (action[0].x + action[0].y)))
+
+    #Funcion que devuelve si ya quedan pocas fichas por meter 
+    def isFinishing(self):
+        return self.utility(self.toMove()) > (len(self.toMove()) * 5 / 6) + 1
 
     #Funcion que devuelve si el estado del juego es terminal 
     def isFinished(self):
@@ -226,11 +236,17 @@ class Game:
 
     #Funcion que implementa el alpha-beta-search
     def alphaBetaSearchPlayer1(self):
-        value, move = maxValue(self, float('-inf'), float('inf'), 1)
+        if(self.isFinishing()):
+            value, move = maxValueFinishing(self)
+        else:
+            value, move = maxValue(self, float('-inf'), float('inf'), 1)
         return move
 
     def alphaBetaSearchPlayer2(self):
-        value, move = minValue(self, float('-inf'), float('inf'), 1)
+        if(self.isFinishing()):
+            value, move = minValueFinishing(self)
+        else:
+            value, move = minValue(self, float('-inf'), float('inf'), 1)
         return move
     
 #Funcion que implementa el max-value
@@ -240,6 +256,8 @@ def maxValue(game, alpha, beta, depth):
     v = float('-inf')
     for a in game.actions():
         newGame = game.result(a)[0]
+        #Cambia de turno
+        newGame = newGame.changeTurn(newGame)
         v2, a2 = minValue(newGame, alpha, beta, depth + 1)
         if (v2 > v):
             v, move = v2, a
@@ -255,6 +273,8 @@ def minValue(game, alpha, beta, depth):
     v = float('inf')
     for a in game.actions():
         newGame = game.result(a)[0]
+        #Cambia de turno
+        newGame = newGame.changeTurn(newGame)
         v2, a2 = maxValue(newGame, alpha, beta, depth + 1)
         if (v2 < v):
             v, move = v2, a
@@ -263,6 +283,29 @@ def minValue(game, alpha, beta, depth):
             return v, move
     return v, move
             
+#Funcion que implementa el max-value cuando esta en finishing
+def maxValueFinishing(game):
+    v = float('inf')
+    move = None
+    for a in game.actions():   
+        for i in range(5):
+            for j in range(5):
+                if(game.board[i + 5][j + 5].visitor is None and sqrt((j + 5 - a[1].x)**2 + (i + 5 - a[1].y)**2) < v):
+                    move = a
+                    v = sqrt((j + 5 - a[1].x)**2 + (i + 5 - a[1].y)**2)
+    return v, move        
+
+#Funcion que implementa el min-value cuando esta en finishing
+def minValueFinishing(game):
+    v = float('inf')
+    move = None
+    for a in game.actions():
+        for i in range(5):
+            for j in range(5):
+                if(game.board[i][j].visitor is None and sqrt((j - a[1].x)**2 + (i - a[1].y)**2) < v):
+                    move = a
+                    v = sqrt((j - a[1].x)**2 + (i - a[1].y)**2)
+    return v, move
 
 #Funcion que devuelve una tupla de las casillas a las que se puede mover una casilla
 def squaresToMove(initialCoord, square, availableActions, recursive = False):
